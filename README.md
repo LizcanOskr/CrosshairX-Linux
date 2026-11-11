@@ -1,8 +1,16 @@
 # CrosshairX para Linux
 
-Una mira configurable para KDE Plasma en Wayland. La configuración y la
-bandeja están hechas con Python y PyQt6; la mira se dibuja con una superficie
-LayerShellQt del compositor.
+**Versión 1.0.0.** Una mira configurable para juegos en KDE Plasma sobre
+Wayland. Permite ajustar forma, color, tamaño, pantalla y posición; incluye
+atajos globales configurables para mover la mira y un icono de bandeja. La
+configuración está hecha con Python y PyQt6, y la mira se dibuja mediante una
+superficie LayerShellQt del compositor.
+
+## Capturas de pantalla
+
+![Ventana de configuración de CrosshairX](docs/screenshots/configuration.png)
+
+![Configuración de atajos globales para mover la mira](docs/screenshots/movement-shortcuts.png)
 
 ## Ejecutar
 
@@ -50,8 +58,9 @@ X/Y y se guardan en la configuración. Los cambios de atajo se aplican sin
 reiniciar la aplicación.
 
 `Ctrl` + `Alt` + `º` alterna la visibilidad de la mira desde cualquier
-aplicación. `Fn` no se transmite como modificador separado para esa tecla en
-este teclado, así que no se puede distinguir globalmente `Fn` + `º` de `º`.
+aplicación. En algunos teclados `Fn` no se transmite como modificador separado;
+los atajos configurables permiten elegir combinaciones que no dependan de esa
+tecla.
 
 El icono blanco y transparente de la bandeja alterna la mira con un clic
 izquierdo. El menú contextual permite abrir la configuración, activar o

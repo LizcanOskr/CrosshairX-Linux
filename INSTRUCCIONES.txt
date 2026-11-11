@@ -1,0 +1,70 @@
+====================================================================
+  GUÍA DE INSTALACIÓN DE CROSSHAIRX PARA LINUX (KDE PLASMA WAYLAND)
+====================================================================
+
+Este paquete contiene todo lo necesario para instalar y ejecutar CrosshairX
+en cualquier otro ordenador con Linux (KDE Plasma en Wayland).
+
+--------------------------------------------------------------------
+OPCIÓN 1: INSTALACIÓN EN FEDORA / RHEL / OPENSUSE (RECOMENDADA - RPM)
+--------------------------------------------------------------------
+Si el otro ordenador utiliza Fedora o un sistema basado en RPM:
+
+1. Abre una terminal en esta carpeta.
+2. Ejecuta:
+     sudo dnf install ./crosshairx-linux-1.0.0-1.fc44.x86_64.rpm
+
+   (O haz doble clic sobre el archivo .rpm desde el explorador de archivos).
+   ¡Listo! Resolverá automáticamente las dependencias e integrará la app.
+
+
+--------------------------------------------------------------------
+OPCIÓN 2: INSTALADOR UNIVERSAL (CUALQUIER DISTRIBUCIÓN LINUX)
+--------------------------------------------------------------------
+Válido para Ubuntu, Debian, Arch Linux, Manjaro, Fedora, etc.
+
+1. Abre una terminal en esta carpeta.
+2. Dale permisos de ejecución si es necesario:
+     chmod +x install.sh uninstall.sh build.sh
+
+3. Ejecuta el instalador:
+   - Para tu usuario (no requiere contraseña de root):
+       ./install.sh
+
+   - O para todo el sistema (todos los usuarios):
+       sudo ./install.sh
+
+4. Dependencias del sistema necesarias:
+   * Python 3 y PyQt6
+   * KDE Plasma 6 en Wayland
+   * LayerShellQt (layer-shell-qt)
+   * KF6 GlobalAccel y KF6 WindowSystem
+
+   Comandos rápidos para instalar dependencias según la distro:
+   - Fedora:
+       sudo dnf install python3-pyqt6 layer-shell-qt kf6-kglobalaccel kf6-kwindowsystem qt6-qtbase-gui
+   - Ubuntu / Debian / Pop!_OS:
+       sudo apt install python3-pyqt6 liblayershellqt-interface6 libkf6globalaccel6 libkf6windowsystem6
+   - Arch Linux / Manjaro:
+       sudo pacman -S python-pyqt6 layer-shell-qt kglobalaccel kwindowsystem qt6-base
+
+
+--------------------------------------------------------------------
+¿QUÉ HACER SI EL OTRO EQUIPO TIENE OTRA VERSIÓN DE LIBRERÍAS?
+--------------------------------------------------------------------
+Si el binario precompilado no arrancase por diferencias de versión de Qt/KDE,
+puedes recompilar el renderizador fácilmente ejecutando:
+     ./install.sh --rebuild
+
+Para compilar necesitarás: cmake, g++ y las librerías -devel o -dev de tu distro.
+
+
+--------------------------------------------------------------------
+DESINSTALACIÓN
+--------------------------------------------------------------------
+Para desinstalarlo en cualquier momento:
+- Si usaste RPM:
+    sudo dnf remove crosshairx-linux
+- Si usaste el script:
+    ./uninstall.sh (o sudo ./uninstall.sh)
+====================================================================

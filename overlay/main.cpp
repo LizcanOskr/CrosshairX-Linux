@@ -5,8 +5,10 @@
 #include <QApplication>
 #include <QAction>
 #include <QFile>
+#include <QHash>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QKeySequence>
 #include <QPainter>
 #include <QSaveFile>
 #include <QScreen>
@@ -50,7 +52,6 @@ public:
 
         connect(&timer_, &QTimer::timeout, this, [this] { readSettings(); });
         timer_.start(150);
-        registerMovementShortcuts();
         registerVisibilityShortcut();
         readSettings();
     }
@@ -81,28 +82,57 @@ protected:
     }
 
 private:
-    void registerMovementShortcuts()
+    void registerMovementShortcuts(const QJsonObject &settings)
     {
-        const auto registerShortcut = [this](const QString &name,
-                                             const QString &label,
-                                             Qt::Key key,
-                                             int dx, int dy) {
-            auto *action = new QAction(this);
-            action->setObjectName(name);
-            action->setText(label);
-            const QList<QKeySequence> shortcut{QKeySequence(key)};
-            auto *accel = KGlobalAccel::self();
-            accel->setDefaultShortcut(action, shortcut);
-            if (!accel->setShortcut(action, shortcut))
-                qWarning("No se pudo registrar el atajo global %s",
-                         qPrintable(label));
-            connect(action, &QAction::triggered, this,
-                    [this, dx, dy] { moveCrosshair(dx, dy); });
+        struct MovementShortcut {
+            const char *setting;
+            const char *name;
+            const char *label;
+            const char *defaultSequence;
+            int dx;
+            int dy;
         };
-        registerShortcut(QStringLiteral("moveLeft"), QStringLiteral("Mover mira a la izquierda"), Qt::Key_Home, -1, 0);
-        registerShortcut(QStringLiteral("moveRight"), QStringLiteral("Mover mira a la derecha"), Qt::Key_End, 1, 0);
-        registerShortcut(QStringLiteral("moveUp"), QStringLiteral("Mover mira arriba"), Qt::Key_PageUp, 0, -1);
-        registerShortcut(QStringLiteral("moveDown"), QStringLiteral("Mover mira abajo"), Qt::Key_PageDown, 0, 1);
+        static constexpr MovementShortcut shortcuts[] = {
+            {"move_left_shortcut", "moveLeft", "Mover mira a la izquierda", "Home", -1, 0},
+            {"move_right_shortcut", "moveRight", "Mover mira a la derecha", "End", 1, 0},
+            {"move_up_shortcut", "moveUp", "Mover mira arriba", "PgUp", 0, -1},
+            {"move_down_shortcut", "moveDown", "Mover mira abajo", "PgDown", 0, 1},
+        };
+        auto *accel = KGlobalAccel::self();
+        for (const auto &entry : shortcuts) {
+            const QString setting = QString::fromLatin1(entry.setting);
+            const QString sequenceText = settings.value(setting)
+                .toString(QString::fromLatin1(entry.defaultSequence));
+            if (registeredMovementShortcuts_.value(setting) == sequenceText
+                && registeredMovementShortcuts_.contains(setting))
+                continue;
+
+            QAction *action = movementActions_.value(setting, nullptr);
+            if (!action) {
+                action = new QAction(this);
+                action->setObjectName(QString::fromLatin1(entry.name));
+                action->setText(QString::fromLatin1(entry.label));
+                connect(action, &QAction::triggered, this,
+                        [this, dx = entry.dx, dy = entry.dy] {
+                            moveCrosshair(dx, dy);
+                        });
+                movementActions_.insert(setting, action);
+            }
+
+            const QKeySequence sequence = QKeySequence::fromString(
+                sequenceText, QKeySequence::PortableText);
+            const QList<QKeySequence> assigned = sequence.isEmpty()
+                ? QList<QKeySequence>{} : QList<QKeySequence>{sequence};
+            accel->setDefaultShortcut(action, assigned, KGlobalAccel::NoAutoloading);
+            if (sequence.isEmpty()) {
+                accel->removeAllShortcuts(action);
+            } else if (!accel->setShortcut(
+                           action, assigned, KGlobalAccel::NoAutoloading)) {
+                qWarning("No se pudo registrar el atajo global %s",
+                         entry.label);
+            }
+            registeredMovementShortcuts_.insert(setting, sequenceText);
+        }
     }
 
     void registerVisibilityShortcut()
@@ -186,6 +216,7 @@ private:
         if (!file.open(QIODevice::ReadOnly))
             return;
         const QJsonObject s = QJsonDocument::fromJson(file.readAll()).object();
+        registerMovementShortcuts(s);
         const int screenIndex = s.value("screen").toInt(0);
         const auto screens = QGuiApplication::screens();
         if (!screens.isEmpty()) {
@@ -230,6 +261,8 @@ private:
     }
 
     QString settingsPath_;
+    QHash<QString, QAction *> movementActions_;
+    QHash<QString, QString> registeredMovementShortcuts_;
     LayerShellQt::Window *layer_ = nullptr;
     QTimer timer_;
     QString shape_ = QStringLiteral("Cruz");

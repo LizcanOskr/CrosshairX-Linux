@@ -42,11 +42,12 @@ grosor en pasos de 0,25 px, borde, pantalla, posición X/Y y visibilidad. El
 botón «Centrar en la pantalla» vuelve a poner ambos desplazamientos a cero. Los
 cambios se guardan automáticamente.
 
-Con la mira visible, las flechas desplazan la posición un píxel cada vez.
-En teclados Apple, `Fn` + ←/→/↑/↓ se traduce respectivamente a `Home`, `End`,
-`Page Up` y `Page Down`; esas teclas también mueven la mira si se pulsan sin Fn.
-Los desplazamientos se reflejan en los controles X/Y y se guardan en la
-configuración.
+Con la mira visible, los atajos configurados en la sección «Posición desde el
+centro» desplazan la posición un píxel en la dirección indicada. Cada dirección
+se puede asignar a una combinación distinta; los valores iniciales son `Home`,
+`End`, `Page Up` y `Page Down`. Los desplazamientos se reflejan en los controles
+X/Y y se guardan en la configuración. Los cambios de atajo se aplican sin
+reiniciar la aplicación.
 
 `Ctrl` + `Alt` + `º` alterna la visibilidad de la mira desde cualquier
 aplicación. `Fn` no se transmite como modificador separado para esa tecla en

@@ -10,11 +10,14 @@ import sys
 from pathlib import Path
 
 from PyQt6.QtCore import Qt, QTimer, QSignalBlocker
-from PyQt6.QtGui import QAction, QColor, QPainter, QPen, QPixmap, QIcon
+from PyQt6.QtGui import (
+    QAction, QColor, QKeySequence, QPainter, QPen, QPixmap, QIcon,
+)
 from PyQt6.QtWidgets import (
     QApplication, QCheckBox, QColorDialog, QComboBox, QDoubleSpinBox,
     QFormLayout, QFrame, QHBoxLayout, QLabel, QMainWindow, QMenu, QMessageBox,
-    QPushButton, QSlider, QSpinBox, QSystemTrayIcon, QVBoxLayout, QWidget,
+    QPushButton, QKeySequenceEdit, QSlider, QSpinBox, QSystemTrayIcon,
+    QVBoxLayout, QWidget,
 )
 
 
@@ -40,9 +43,11 @@ def find_overlay_binary() -> Path:
 
 OVERLAY_BINARY = find_overlay_binary()
 DEFAULTS = {
-    "version": 3, "shape": "Cruz", "color": "#00ff66", "size": 48,
+    "version": 4, "shape": "Cruz", "color": "#00ff66", "size": 48,
     "gap": 5, "thickness": 1.5, "outline": True, "visible": True,
     "screen": 0, "x_offset": 0, "y_offset": 0, "tray_symbol_scale": 100,
+    "move_left_shortcut": "Home", "move_right_shortcut": "End",
+    "move_up_shortcut": "PgUp", "move_down_shortcut": "PgDown",
 }
 
 
@@ -83,7 +88,11 @@ class MainWindow(QMainWindow):
             data.setdefault("x_offset", 0)
             data.setdefault("y_offset", 0)
             data.setdefault("tray_symbol_scale", 100)
-            data["version"] = 3
+            for key in ("move_left_shortcut", "move_right_shortcut",
+                        "move_up_shortcut", "move_down_shortcut"):
+                if not isinstance(data.get(key, DEFAULTS[key]), str):
+                    data[key] = DEFAULTS[key]
+            data["version"] = 4
             return {**DEFAULTS, **data}
         except (OSError, ValueError, TypeError):
             return DEFAULTS.copy()
@@ -141,6 +150,24 @@ class MainWindow(QMainWindow):
         self.y_offset.setSuffix(" px")
         self.center_button = QPushButton("Centrar en la pantalla")
         self.center_button.clicked.connect(self.center_crosshair)
+        self.move_shortcuts = {}
+        self.shortcut_warning = QLabel()
+        self.shortcut_warning.setStyleSheet("color:#d9534f;font-size:11px")
+        self.shortcut_warning.setWordWrap(True)
+        shortcut_form = QFormLayout()
+        for key, label in (
+            ("move_left_shortcut", "Izquierda"),
+            ("move_right_shortcut", "Derecha"),
+            ("move_up_shortcut", "Arriba"),
+            ("move_down_shortcut", "Abajo"),
+        ):
+            shortcut = QKeySequenceEdit(QKeySequence(DEFAULTS[key]))
+            shortcut.setMaximumSequenceLength(1)
+            shortcut.setToolTip(
+                "Pulsa este campo y luego la combinación de teclas que quieras."
+            )
+            self.move_shortcuts[key] = shortcut
+            shortcut_form.addRow(label, shortcut)
         position = QWidget()
         position_layout = QVBoxLayout(position)
         position_layout.setContentsMargins(0, 0, 0, 0)
@@ -151,9 +178,11 @@ class MainWindow(QMainWindow):
         axes.addWidget(self.y_offset)
         position_layout.addLayout(axes)
         position_layout.addWidget(self.center_button)
+        position_layout.addWidget(QLabel("Atajos globales para mover la mira:"))
+        position_layout.addLayout(shortcut_form)
+        position_layout.addWidget(self.shortcut_warning)
         position_layout.addWidget(QLabel(
-            "Con la mira visible: Fn + flechas la mueve 1 px. En este teclado, "
-            "Fn + flechas equivale a Inicio, Fin, RePág y AvPág."
+            "Cada atajo desplaza la mira 1 px en la dirección indicada."
         ))
         position_layout.addWidget(QLabel(
             "Pulsa Ctrl + Alt + º para activar o desactivar la mira."
@@ -203,11 +232,14 @@ class MainWindow(QMainWindow):
 
         for control in (self.shape, self.size, self.gap, self.thickness,
                         self.screen, self.x_offset, self.y_offset,
-                        self.tray_scale, self.outline, self.visible):
+                        self.tray_scale, self.outline, self.visible,
+                        *self.move_shortcuts.values()):
             if isinstance(control, QComboBox):
                 control.currentIndexChanged.connect(self.changed)
             elif isinstance(control, (QSpinBox, QDoubleSpinBox)):
                 control.valueChanged.connect(self.changed)
+            elif isinstance(control, QKeySequenceEdit):
+                control.keySequenceChanged.connect(self.changed)
             else:
                 control.stateChanged.connect(self.changed)
 
@@ -294,12 +326,26 @@ class MainWindow(QMainWindow):
         self.x_offset.setValue(int(s["x_offset"]))
         self.y_offset.setValue(int(s["y_offset"]))
         self.tray_scale.setValue(int(s["tray_symbol_scale"]))
+        for key, shortcut in self.move_shortcuts.items():
+            shortcut.setKeySequence(QKeySequence(s[key]))
         self._loading_settings = False
         self._update_controls()
 
     def changed(self, *_):
         if self._loading_settings:
             return
+        shortcut_sequences = [
+            shortcut.keySequence().toString(
+                QKeySequence.SequenceFormat.PortableText)
+            for shortcut in self.move_shortcuts.values()
+        ]
+        assigned_sequences = [sequence for sequence in shortcut_sequences if sequence]
+        if len(assigned_sequences) != len(set(assigned_sequences)):
+            self.shortcut_warning.setText(
+                "Cada dirección debe tener una combinación distinta."
+            )
+            return
+        self.shortcut_warning.clear()
         # El overlay puede haber desplazado la mira con un atajo global.
         # Conserva esa posición al guardar cualquier otro control.
         if self.sender() not in (self.x_offset, self.y_offset):
@@ -312,7 +358,7 @@ class MainWindow(QMainWindow):
             except (OSError, ValueError, TypeError):
                 pass
         self.settings = {
-            "version": 3,
+            "version": 4,
             "shape": self.shape.currentText(),
             "color": self.settings["color"],
             "size": self.size.value(),
@@ -324,6 +370,11 @@ class MainWindow(QMainWindow):
             "x_offset": self.x_offset.value(),
             "y_offset": self.y_offset.value(),
             "tray_symbol_scale": self.tray_scale.value(),
+            **{
+                key: shortcut.keySequence().toString(
+                    QKeySequence.SequenceFormat.PortableText)
+                for key, shortcut in self.move_shortcuts.items()
+            },
         }
         self._update_controls()
         self.save_settings()
